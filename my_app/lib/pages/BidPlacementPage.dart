@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BidPlacementPage extends StatefulWidget {
-  final int billboardId;
+  final String billboardId;
   final String location;
   final String size;
   final double basePrice;
@@ -70,12 +70,13 @@ class _BidPlacementPageState extends State<BidPlacementPage> {
       }
 
       await _supabase.from('bids').insert({
-        'billboard_id': widget.billboardId,
-        'sponsor_id': sponsorId,
-        'bid_amount': bidAmount,
-        'ai_predicted_price': _aiPredictedPrice, // Store AI price in bids table
-        'status': 'Pending', // Default status
-      });
+  'billboard_id': widget.billboardId, // Ensure this is a string (UUID)
+  'sponsor_id': sponsorId,
+  'bid_amount': bidAmount,
+  'bid_status': 'Pending', // Correct column name
+  'bid_time': DateTime.now().toIso8601String(),
+
+});
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Bid placed successfully!")),
