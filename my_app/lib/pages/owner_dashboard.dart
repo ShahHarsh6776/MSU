@@ -25,21 +25,23 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
   }
 
   Future<void> fetchBillboards() async {
-    print("Fetching billboards...");
+    print("Fetching billboards for owner: ${widget.ownerId}...");
     try {
       final response = await supabase
           .from('billboards')
-          .select('id, owner_id, location, size, base_price, company_name')
+          .select(
+            'id, owner_id, location, size, manual_price, ai_predicted_price, availability, owner_name',
+          )
           .eq('owner_id', widget.ownerId);
 
-      print("Billboards fetched: ${response.length}"); // Debugging
+      print("Billboards fetched: ${response.length}");
 
       setState(() {
         billboards = List<Map<String, dynamic>>.from(response);
         isLoading = false;
       });
     } catch (error) {
-      print("Error fetching billboards: $error"); // Debugging
+      print("Error fetching billboards: $error");
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error loading billboards: $error")),
@@ -58,14 +60,40 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
             final billboard = billboards[index];
             return Card(
               margin: const EdgeInsets.all(10),
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: ListTile(
-                title: Text('📍 Location: ${billboard['location']}'),
+                title: Text(
+                  '📍 Location: ${billboard['location']}',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('📏 Size: ${billboard['size']} sq ft'),
-                    Text('💰 Base Price: \$${billboard['base_price']}'),
-                    Text('🏢 Company: ${billboard['company_name']}'),
+                    Text('🏢 Owner: ${billboard['owner_name']}'),
+                    Text('💰 Manual Price: \$${billboard['manual_price']}'),
+                    Text(
+                      '🤖 AI Price: \$${billboard['ai_predicted_price']}',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      billboard['availability']
+                          ? '✅ Available for Bidding'
+                          : '❌ Not Available',
+                      style: TextStyle(
+                        color:
+                            billboard['availability']
+                                ? Colors.green
+                                : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -84,9 +112,9 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
       );
 
       if (result == true) {
-        fetchBillboards(); // Refresh billboard list if a new one is added
+        fetchBillboards(); // Refresh billboard list after adding
       }
-      return; // Prevent setting index to 1 since we use a separate screen for adding
+      return;
     }
 
     setState(() {

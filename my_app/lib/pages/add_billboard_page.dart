@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AddBillboardPage extends StatefulWidget {
   final String ownerId;
@@ -15,20 +17,62 @@ class _AddBillboardPageState extends State<AddBillboardPage> {
 
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _sizeController = TextEditingController();
-  final TextEditingController _basePriceController = TextEditingController();
-  final TextEditingController _companyController = TextEditingController();
+  final TextEditingController _manualPriceController = TextEditingController();
+  final TextEditingController _ownerController = TextEditingController();
+  bool _availability = true; // Default availability is true
   bool _isLoading = false;
+  double? _aiPredictedPrice; // AI-generated price
+
+  Future<void> _fetchAiPredictedPrice() async {
+    final location = _locationController.text.trim();
+    final size = double.tryParse(_sizeController.text.trim());
+    final ownerName = _ownerController.text.trim();
+
+    if (location.isEmpty || size == null || ownerName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter location, size, and owner name first!'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      var url = Uri.parse("http://127.0.0.1:8000/predict_price/");
+      var response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "location": location,
+          "size": size,
+          "owner_name": ownerName,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _aiPredictedPrice = jsonDecode(response.body)["ai_predicted_price"];
+        });
+      } else {
+        throw "Failed to fetch AI price";
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("AI Pricing Error: $e")));
+    }
+  }
 
   Future<void> _addBillboard() async {
     final location = _locationController.text.trim();
     final size = double.tryParse(_sizeController.text.trim());
-    final basePrice = double.tryParse(_basePriceController.text.trim());
-    final companyName = _companyController.text.trim();
+    final manualPrice = double.tryParse(_manualPriceController.text.trim());
+    final ownerName = _ownerController.text.trim();
 
     if (location.isEmpty ||
         size == null ||
-        basePrice == null ||
-        companyName.isEmpty) {
+        manualPrice == null ||
+        ownerName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields correctly!')),
       );
@@ -42,15 +86,18 @@ class _AddBillboardPageState extends State<AddBillboardPage> {
         'owner_id': widget.ownerId,
         'location': location,
         'size': size,
-        'base_price': basePrice,
-        'company_name': companyName,
+        'manual_price': manualPrice,
+        'ai_predicted_price':
+            _aiPredictedPrice ?? manualPrice, // Use AI price if available
+        'owner_name': ownerName,
+        'availability': _availability,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Billboard added successfully!')),
         );
-        Navigator.pop(context, true); // Return `true` to indicate success
+        Navigator.pop(context, true); // Return success
       }
     } catch (e) {
       if (mounted) {
@@ -81,15 +128,39 @@ class _AddBillboardPageState extends State<AddBillboardPage> {
               keyboardType: TextInputType.number,
             ),
             TextField(
-              controller: _basePriceController,
-              decoration: const InputDecoration(labelText: 'Base Price'),
+              controller: _manualPriceController,
+              decoration: const InputDecoration(labelText: 'Manual Price (\$)'),
               keyboardType: TextInputType.number,
             ),
             TextField(
-              controller: _companyController,
-              decoration: const InputDecoration(labelText: 'Company Name'),
+              controller: _ownerController,
+              decoration: const InputDecoration(labelText: 'Owner Name'),
+            ),
+            SwitchListTile(
+              title: const Text('Available for Bidding'),
+              value: _availability,
+              onChanged: (bool value) {
+                setState(() {
+                  _availability = value;
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+
+            _aiPredictedPrice != null
+                ? Text(
+                  "AI Predicted Price: \$$_aiPredictedPrice",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                )
+                : Container(),
+
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _fetchAiPredictedPrice,
+              child: const Text('Get AI-Predicted Price'),
             ),
             const SizedBox(height: 20),
+
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(

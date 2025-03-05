@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:my_app/pages/profile_page.dart'; // Import the ProfilePage
+import 'package:my_app/pages/profile_page.dart';
+import 'sponsor_analytics_page.dart';
 
 class SponsorDashboardPage extends StatefulWidget {
   const SponsorDashboardPage({super.key});
@@ -13,16 +14,16 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   List<Map<String, dynamic>> _billboards = [];
-  List<String> _locations = ["All Locations"]; // Default location list
-  String _selectedLocation = "All Locations"; // Default selected location
+  List<String> _locations = ["All Locations"];
+  String _selectedLocation = "All Locations";
   bool _isLoading = true;
-  int _selectedIndex = 0; // Index for bottom navigation bar
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _fetchLocations(); // Load available locations
-    _fetchBillboards(); // Fetch billboard list
+    _fetchLocations();
+    _fetchBillboards();
   }
 
   // Fetch unique billboard locations from Supabase
@@ -30,7 +31,6 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
     try {
       final data = await _supabase.from('billboards').select('location');
 
-      // Extract unique locations
       final fetchedLocations =
           data
               .map<String>((row) => row['location'].toString())
@@ -38,7 +38,7 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
               .toList();
 
       setState(() {
-        _locations = ["All Locations", ...fetchedLocations]; // Add "All" option
+        _locations = ["All Locations", ...fetchedLocations];
       });
     } catch (e) {
       ScaffoldMessenger.of(
@@ -54,9 +54,11 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
     try {
       var query = _supabase
           .from('billboards')
-          .select('id, owner_id, location, size, base_price, company_name');
+          .select(
+            'id, owner_id, location, size, manual_price, ai_predicted_price, availability, owner_name',
+          )
+          .eq('availability', true); // Only show available billboards
 
-      // Apply location filter if selected
       if (_selectedLocation != "All Locations") {
         query = query.eq('location', _selectedLocation);
       }
@@ -79,7 +81,6 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
   Widget _buildBillboardList() {
     return Column(
       children: [
-        // Location Dropdown Filter
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: DropdownButtonFormField<String>(
@@ -94,7 +95,7 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
             onChanged: (value) {
               setState(() {
                 _selectedLocation = value!;
-                _fetchBillboards(); // Refresh billboard list
+                _fetchBillboards();
               });
             },
             decoration: const InputDecoration(
@@ -116,20 +117,48 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
                       final billboard = _billboards[index];
                       return Card(
                         margin: const EdgeInsets.all(8.0),
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: ListTile(
-                          title: Text('📍 ${billboard['location']}'),
+                          title: Text(
+                            '📍 Location: ${billboard['location']}',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('🏢 Company: ${billboard['company_name']}'),
-                              Text('📏 Size: ${billboard['size']} sq. ft'),
-                              Text('💰 Price: \$${billboard['base_price']}'),
+                              Text('🏢 Owner: ${billboard['owner_name']}'),
+                              Text('📏 Size: ${billboard['size']} sq ft'),
+                              Text(
+                                '💰 Manual Price: \$${billboard['manual_price']}',
+                              ),
+                              Text(
+                                '🤖 AI Price: \$${billboard['ai_predicted_price']}',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                billboard['availability']
+                                    ? '✅ Available for Bidding'
+                                    : '❌ Not Available',
+                                style: TextStyle(
+                                  color:
+                                      billboard['availability']
+                                          ? Colors.green
+                                          : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.arrow_forward),
                             onPressed: () {
-                              // Navigate to billboard details or booking page
+                              // Navigate to billboard details or bidding page
                             },
                           ),
                         ),
@@ -152,17 +181,15 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
-        return _buildBillboardList(); // Home (Billboard List)
+        return _buildBillboardList();
       case 1:
-        return const Center(child: Text('Add Page')); // Placeholder for Add
+        return const Center(child: Text('Add Page'));
       case 2:
-        return const Center(child: Text('Bids Page')); // Placeholder for Bids
+        return const Center(child: Text('Bids Page'));
       case 3:
-        return const Center(
-          child: Text('Analytics Page'),
-        ); // Placeholder for Analytics
+        return const SponsorAnalyticsPage();
       case 4:
-        return const ProfilePage(); // Profile Page
+        return const ProfilePage();
       default:
         return _buildBillboardList();
     }
