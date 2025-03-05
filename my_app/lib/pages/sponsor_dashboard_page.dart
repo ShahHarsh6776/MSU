@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:my_app/pages/profile_page.dart';
 import 'sponsor_analytics_page.dart';
+import 'BidPlacementPage.dart'; // Ensure correct path
 
 class SponsorDashboardPage extends StatefulWidget {
   const SponsorDashboardPage({super.key});
@@ -26,28 +27,26 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
     _fetchBillboards();
   }
 
-  // Fetch unique billboard locations from Supabase
+  /// Fetch unique billboard locations from Supabase
   Future<void> _fetchLocations() async {
     try {
       final data = await _supabase.from('billboards').select('location');
-
-      final fetchedLocations =
-          data
-              .map<String>((row) => row['location'].toString())
-              .toSet()
-              .toList();
+      final fetchedLocations = data
+          .map<String>((row) => row['location'].toString())
+          .toSet()
+          .toList();
 
       setState(() {
         _locations = ["All Locations", ...fetchedLocations];
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching locations: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching locations: $e')),
+      );
     }
   }
 
-  // Fetch billboards from Supabase
+  /// Fetch billboards from Supabase
   Future<void> _fetchBillboards() async {
     setState(() => _isLoading = true);
 
@@ -57,27 +56,26 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
           .select(
             'id, owner_id, location, size, manual_price, ai_predicted_price, availability, owner_name',
           )
-          .eq('availability', true); // Only show available billboards
+          .eq('availability', true); // Only available billboards
 
       if (_selectedLocation != "All Locations") {
         query = query.eq('location', _selectedLocation);
       }
 
       final data = await query;
-
       setState(() {
         _billboards = List<Map<String, dynamic>>.from(data);
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching billboards: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching billboards: $e')),
+      );
     }
   }
 
-  // Build the billboard list with a dropdown filter
+  /// Builds the billboard list with a location dropdown filter
   Widget _buildBillboardList() {
     return Column(
       children: [
@@ -85,13 +83,12 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
           padding: const EdgeInsets.all(8.0),
           child: DropdownButtonFormField<String>(
             value: _selectedLocation,
-            items:
-                _locations.map((location) {
-                  return DropdownMenuItem(
-                    value: location,
-                    child: Text(location),
-                  );
-                }).toList(),
+            items: _locations.map((location) {
+              return DropdownMenuItem(
+                value: location,
+                child: Text(location),
+              );
+            }).toList(),
             onChanged: (value) {
               setState(() {
                 _selectedLocation = value!;
@@ -106,78 +103,83 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
         ),
 
         Expanded(
-          child:
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _billboards.isEmpty
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _billboards.isEmpty
                   ? const Center(child: Text('No billboards available.'))
                   : ListView.builder(
-                    itemCount: _billboards.length,
-                    itemBuilder: (context, index) {
-                      final billboard = _billboards[index];
-                      return Card(
-                        margin: const EdgeInsets.all(8.0),
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            '📍 Location: ${billboard['location']}',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                      itemCount: _billboards.length,
+                      itemBuilder: (context, index) {
+                        final billboard = _billboards[index];
+                        return Card(
+                          margin: const EdgeInsets.all(8.0),
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('🏢 Owner: ${billboard['owner_name']}'),
-                              Text('📏 Size: ${billboard['size']} sq ft'),
-                              Text(
-                                '💰 Manual Price: \$${billboard['manual_price']}',
-                              ),
-                              Text(
-                                '🤖 AI Price: \$${billboard['ai_predicted_price']}',
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
+                          child: ListTile(
+                            title: Text(
+                              '📍 Location: ${billboard['location']}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('🏢 Owner: ${billboard['owner_name']}'),
+                                Text('📏 Size: ${billboard['size']} sq ft'),
+                                Text('💰 Manual Price: \$${billboard['manual_price']}'),
+                                Text(
+                                  '🤖 AI Price: \$${billboard['ai_predicted_price']}',
+                                  style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                billboard['availability']
-                                    ? '✅ Available for Bidding'
-                                    : '❌ Not Available',
-                                style: TextStyle(
-                                  color:
-                                      billboard['availability']
-                                          ? Colors.green
-                                          : Colors.red,
-                                  fontWeight: FontWeight.bold,
+                                Text(
+                                  billboard['availability']
+                                      ? '✅ Available for Bidding'
+                                      : '❌ Not Available',
+                                  style: TextStyle(
+                                    color: billboard['availability'] ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.arrow_forward),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => BidPlacementPage(
+                                      billboardId: billboard['id'],
+                                      location: billboard['location'],
+                                      size: billboard['size'],
+                                      basePrice: billboard['manual_price'].toDouble(),
+                                      companyName: billboard['owner_name'],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.arrow_forward),
-                            onPressed: () {
-                              // Navigate to billboard details or bidding page
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
         ),
       ],
     );
   }
 
-  // Handle bottom navigation bar item selection
+  /// Handle bottom navigation bar item selection
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Define different pages for navigation
+  /// Define different pages for navigation
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
@@ -208,10 +210,7 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Add'),
           BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Bids'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
