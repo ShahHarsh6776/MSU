@@ -25,28 +25,62 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
   }
 
   Future<void> fetchBillboards() async {
-    print("Fetching billboards for owner: ${widget.ownerId}...");
     try {
       final response = await supabase
           .from('billboards')
           .select(
-            'id, owner_id, location, size, manual_price, ai_predicted_price, availability, owner_name',
+            'id, location, size, manual_price, ai_predicted_price, is_bidding_active',
           )
           .eq('owner_id', widget.ownerId);
 
-      print("Billboards fetched: ${response.length}");
+      List<Map<String, dynamic>> updatedBillboards =
+          List<Map<String, dynamic>>.from(response);
+
+      for (var billboard in updatedBillboards) {
+        final highestBid =
+            await supabase
+                .from('bids')
+                .select('bid_amount, sponsor_id, sponsors(username)')
+                .eq('billboard_id', billboard['id'])
+                .order('bid_amount', ascending: false)
+                .limit(1)
+                .maybeSingle();
+
+        billboard['highest_bid'] =
+            highestBid != null ? highestBid['bid_amount'] : 'No Bids';
+        billboard['highest_bidder'] =
+            highestBid != null ? highestBid['sponsors']['username'] : 'No Bids';
+      }
 
       setState(() {
-        billboards = List<Map<String, dynamic>>.from(response);
+        billboards = updatedBillboards;
         isLoading = false;
       });
-    } catch (error) {
-      print("Error fetching billboards: $error");
+    } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error loading billboards: $error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error fetching billboards: $e")));
     }
+  }
+
+  Future<void> startBidding(String billboardId, DateTime endTime) async {
+    await supabase
+        .from('billboards')
+        .update({
+          'is_bidding_active': true,
+          'bidding_end_time': endTime.toIso8601String(),
+        })
+        .eq('id', billboardId);
+    fetchBillboards();
+  }
+
+  Future<void> stopBidding(String billboardId) async {
+    await supabase
+        .from('billboards')
+        .update({'is_bidding_active': false})
+        .eq('id', billboardId);
+    fetchBillboards();
   }
 
   Widget _buildBillboardList() {
@@ -58,6 +92,9 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
           itemCount: billboards.length,
           itemBuilder: (context, index) {
             final billboard = billboards[index];
+            final bool isBiddingActive = billboard['is_bidding_active'];
+            final String billboardId = billboard['id'];
+
             return Card(
               margin: const EdgeInsets.all(10),
               elevation: 3,
@@ -65,34 +102,57 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: ListTile(
-                title: Text(
-                  '📍 Location: ${billboard['location']}',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                title: Text('📍 Location: ${billboard['location']}'),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('📏 Size: ${billboard['size']} sq ft'),
-                    Text('🏢 Owner: ${billboard['owner_name']}'),
                     Text('💰 Manual Price: \$${billboard['manual_price']}'),
+                    Text('🤖 AI Price: \$${billboard['ai_predicted_price']}'),
                     Text(
-                      '🤖 AI Price: \$${billboard['ai_predicted_price']}',
-                      style: TextStyle(
-                        color: Colors.blue,
+                      '🏆 Highest Bid: \$${billboard['highest_bid']}',
+                      style: const TextStyle(
+                        color: Colors.green,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      billboard['availability']
-                          ? '✅ Available for Bidding'
-                          : '❌ Not Available',
-                      style: TextStyle(
-                        color:
-                            billboard['availability']
-                                ? Colors.green
-                                : Colors.red,
+                      '👤 Highest Bidder: ${billboard['highest_bidder']}',
+                      style: const TextStyle(
+                        color: Colors.blue,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton(
+                          onPressed:
+                              isBiddingActive
+                                  ? null
+                                  : () {
+                                    DateTime endTime = DateTime.now().add(
+                                      const Duration(hours: 2),
+                                    );
+                                    startBidding(billboardId, endTime);
+                                  },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                          ),
+                          child: const Text("Start Bidding"),
+                        ),
+                        ElevatedButton(
+                          onPressed:
+                              isBiddingActive
+                                  ? () => stopBidding(billboardId)
+                                  : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text("Stop Bidding"),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -100,26 +160,6 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
             );
           },
         );
-  }
-
-  void _onItemTapped(int index) async {
-    if (index == 1) {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddBillboardPage(ownerId: widget.ownerId),
-        ),
-      );
-
-      if (result == true) {
-        fetchBillboards(); // Refresh billboard list after adding
-      }
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
   }
 
   Widget _buildBody() {
@@ -137,6 +177,20 @@ class _OwnerDashboardState extends State<OwnerDashboardPage> {
       default:
         return const Center(child: Text('Page not found'));
     }
+  }
+
+  void _onItemTapped(int index) async {
+    if (index == 1) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddBillboardPage(ownerId: widget.ownerId),
+        ),
+      );
+      if (result == true) fetchBillboards();
+      return;
+    }
+    setState(() => _selectedIndex = index);
   }
 
   @override

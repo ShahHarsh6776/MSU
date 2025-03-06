@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:my_app/pages/profile_page.dart';
 import 'sponsor_analytics_page.dart';
-import 'BidPlacementPage.dart';
+import 'bid_placement_page.dart';
 
 class SponsorDashboardPage extends StatefulWidget {
-  const SponsorDashboardPage({super.key});
+  final String sponsorId;
+
+  const SponsorDashboardPage({super.key, required this.sponsorId});
 
   @override
   State<SponsorDashboardPage> createState() => _SponsorDashboardPageState();
@@ -32,15 +34,18 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
     try {
       final data = await _supabase.from('billboards').select('location');
       final fetchedLocations =
-          data.map<String>((row) => row['location'].toString()).toSet().toList();
+          data
+              .map<String>((row) => row['location'].toString())
+              .toSet()
+              .toList();
 
       setState(() {
         _locations = ["All Locations", ...fetchedLocations];
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching locations: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error fetching locations: $e')));
     }
   }
 
@@ -67,9 +72,9 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching billboards: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error fetching billboards: $e')));
     }
   }
 
@@ -81,12 +86,13 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
           padding: const EdgeInsets.all(8.0),
           child: DropdownButtonFormField<String>(
             value: _selectedLocation,
-            items: _locations.map((location) {
-              return DropdownMenuItem(
-                value: location,
-                child: Text(location),
-              );
-            }).toList(),
+            items:
+                _locations.map((location) {
+                  return DropdownMenuItem(
+                    value: location,
+                    child: Text(location),
+                  );
+                }).toList(),
             onChanged: (value) {
               setState(() {
                 _selectedLocation = value!;
@@ -100,75 +106,80 @@ class _SponsorDashboardPageState extends State<SponsorDashboardPage> {
           ),
         ),
         Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _billboards.isEmpty
+          child:
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _billboards.isEmpty
                   ? const Center(child: Text('No billboards available.'))
                   : ListView.builder(
-                      itemCount: _billboards.length,
-                      itemBuilder: (context, index) {
-                        final billboard = _billboards[index];
-                        return Card(
-                          margin: const EdgeInsets.all(8.0),
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                    itemCount: _billboards.length,
+                    itemBuilder: (context, index) {
+                      final billboard = _billboards[index];
+                      return Card(
+                        margin: const EdgeInsets.all(8.0),
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListTile(
+                          title: Text(
+                            '📍 Location: ${billboard['location']}',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          child: ListTile(
-                            title: Text(
-                              '📍 Location: ${billboard['location']}',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('🏢 Owner: ${billboard['owner_name']}'),
-                                Text('📏 Size: ${billboard['size']} sq ft'),
-                                Text(
-                                  '💰 Manual Price: \$${billboard['manual_price']}',
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('🏢 Owner: ${billboard['owner_name']}'),
+                              Text('📏 Size: ${billboard['size']} sq ft'),
+                              Text(
+                                '💰 Manual Price: \$${billboard['manual_price']}',
+                              ),
+                              Text(
+                                '🤖 AI Price: \$${billboard['ai_predicted_price']}',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Text(
-                                  '🤖 AI Price: \$${billboard['ai_predicted_price']}',
-                                  style: TextStyle(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ),
+                              Text(
+                                billboard['availability']
+                                    ? '✅ Available for Bidding'
+                                    : '❌ Not Available',
+                                style: TextStyle(
+                                  color:
+                                      billboard['availability']
+                                          ? Colors.green
+                                          : Colors.red,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Text(
-                                  billboard['availability']
-                                      ? '✅ Available for Bidding'
-                                      : '❌ Not Available',
-                                  style: TextStyle(
-                                    color: billboard['availability']
-                                        ? Colors.green
-                                        : Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.arrow_forward),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BidPlacementPage(
-                                      billboardId: billboard['id'],
-                                      location: billboard['location'],
-                                      size: billboard['size'].toString(),
-                                      basePrice: billboard['manual_price'],
-                                      companyName: billboard['owner_name'],
-                                      sponsorId: _supabase.auth.currentUser!.id, // Pass sponsorId
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => BidPlacementPage(
+                                        billboardId: billboard['id'],
+                                        location: billboard['location'],
+                                        size: billboard['size'].toString(),
+                                        basePrice: billboard['manual_price'],
+                                        companyName: billboard['owner_name'],
+                                        sponsorId:
+                                            widget
+                                                .sponsorId, // Correct sponsorId
+                                      ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
         ),
       ],
     );

@@ -1,9 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/pages/sponsor_dashboard_page.dart'; // Import the SponsorDashboardPage
-import 'package:my_app/pages/profile_page.dart'; // Import the ProfilePage
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_app/pages/sponsor_dashboard_page.dart';
+import 'package:my_app/pages/profile_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  Future<void> _navigateToSponsorDashboard(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final sponsorId = prefs.getString('sponsor_id');
+
+    if (sponsorId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SponsorDashboardPage(sponsorId: sponsorId),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Sponsor ID not found.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,15 +54,7 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // Navigate to Sponsor Dashboard
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SponsorDashboardPage(),
-                  ),
-                );
-              },
+              onPressed: () => _navigateToSponsorDashboard(context),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 40,
@@ -53,7 +67,6 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () {
-                // Navigate to Profile Page
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ProfilePage()),

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/auth/auth_service.dart';
 import 'package:my_app/pages/register_page.dart';
-//import 'package:my_app/pages/home_page.dart';
-import 'package:my_app/pages/owner_dashboard.dart'; // Import OwnerDashboardPage
-import 'package:my_app/pages/sponsor_dashboard_page.dart'; // Import SponsorDashboardPage
+import 'package:my_app/pages/owner_dashboard.dart';
+import 'package:my_app/pages/sponsor_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,7 +16,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
   final _supabase = Supabase.instance.client;
 
   void _login() async {
@@ -35,56 +33,53 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       String role = "";
+      String? userId;
 
       // Check if the user is an Owner
       final ownerCheck =
           await _supabase
               .from('owners')
-              .select('owner_id, email')
+              .select('owner_id')
               .eq('email', email)
               .maybeSingle();
 
       if (ownerCheck != null) {
         role = "Owner";
+        userId = ownerCheck['owner_id'].toString();
       } else {
         // Check if the user is a Sponsor
         final sponsorCheck =
             await _supabase
                 .from('sponsors')
-                .select('id, email')
+                .select('id') // Use 'id' instead of 'sponsor_id'
                 .eq('email', email)
                 .maybeSingle();
 
         if (sponsorCheck != null) {
           role = "Sponsor";
+          userId = sponsorCheck['id'].toString(); // Assign correct ID
         } else {
           throw Exception("User role not found.");
         }
       }
 
-      // Store role in SharedPreferences for later use
+      // Store role in SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_role', role);
 
-      // Navigate to the appropriate page based on role
       if (mounted) {
         if (role == "Owner") {
-          // Redirect to OwnerDashboardPage with owner_id
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) => OwnerDashboardPage(
-                    ownerId: ownerCheck!['owner_id'].toString(),
-                  ),
+              builder: (context) => OwnerDashboardPage(ownerId: userId!),
             ),
           );
         } else if (role == "Sponsor") {
-          // Redirect to SponsorDashboardPage
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const SponsorDashboardPage(),
+              builder: (context) => SponsorDashboardPage(sponsorId: userId!),
             ),
           );
         } else {
