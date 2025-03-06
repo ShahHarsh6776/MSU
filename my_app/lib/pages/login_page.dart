@@ -51,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
         final sponsorCheck =
             await _supabase
                 .from('sponsors')
-                .select('sponsor_id, email')
+                .select('id, email')
                 .eq('email', email)
                 .maybeSingle();
 

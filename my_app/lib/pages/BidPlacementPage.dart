@@ -5,8 +5,9 @@ class BidPlacementPage extends StatefulWidget {
   final String billboardId;
   final String location;
   final String size;
-  final double basePrice;
+  final int basePrice;
   final String companyName;
+  final String sponsorId; // Add sponsorId parameter
 
   const BidPlacementPage({
     super.key,
@@ -15,6 +16,7 @@ class BidPlacementPage extends StatefulWidget {
     required this.size,
     required this.basePrice,
     required this.companyName,
+    required this.sponsorId, // Add sponsorId parameter
   });
 
   @override
@@ -54,7 +56,6 @@ class _BidPlacementPageState extends State<BidPlacementPage> {
     }
   }
 
-  /// Places the bid in the `bids` table
   Future<void> _placeBid() async {
     try {
       final bidAmount = double.tryParse(_bidController.text);
@@ -62,21 +63,16 @@ class _BidPlacementPageState extends State<BidPlacementPage> {
         throw Exception("Please enter a valid bid amount.");
       }
 
-      // Example sponsor ID (You need to replace this with the actual sponsor's ID from auth)
-      final sponsorId = _supabase.auth.currentUser?.id;
-
-      if (sponsorId == null) {
-        throw Exception("Sponsor not logged in.");
-      }
+      // Use the sponsorId passed from the dashboard
+      final sponsorId = widget.sponsorId;
 
       await _supabase.from('bids').insert({
-  'billboard_id': widget.billboardId, // Ensure this is a string (UUID)
-  'sponsor_id': sponsorId,
-  'bid_amount': bidAmount,
-  'bid_status': 'Pending', // Correct column name
-  'bid_time': DateTime.now().toIso8601String(),
-
-});
+        'billboard_id': widget.billboardId,
+        'sponsor_id': sponsorId,
+        'bid_amount': bidAmount,
+        'bid_status': 'pending',
+        'bid_time': DateTime.now().toIso8601String(),
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Bid placed successfully!")),
