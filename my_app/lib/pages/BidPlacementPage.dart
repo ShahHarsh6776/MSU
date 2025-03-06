@@ -5,7 +5,7 @@ class BidPlacementPage extends StatefulWidget {
   final String billboardId;
   final String location;
   final String size;
-  final int basePrice;
+  final double basePrice;
   final String companyName;
   final String sponsorId; // Add sponsorId parameter
 
